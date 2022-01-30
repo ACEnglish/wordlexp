@@ -335,7 +335,7 @@ def evaluate_first_word(guess, samples=3, n=None, plot=False):
 
     if plot:
         p = sb.boxplot(data=cnt, x="guess", y="a_space")
-        p.set(title="Word Space", xlabel="Guess Number",
+        p.set(title="All Word Space", xlabel="Guess Number",
               ylabel="Space Size", yscale='log')
         p.set_yticklabels(["{:,}".format(int(_)) for _ in p.get_yticks()])
         plt.grid(which='major', axis='both')
@@ -353,7 +353,7 @@ def evaluate_first_word(guess, samples=3, n=None, plot=False):
         display(cnt.groupby('guess')['v_space'].median().T)
 
         p = sb.barplot(data=summary, x="guess", y="win count")
-        p.set(title="But I am bad at it", xlabel="Guess Count", ylabel="Win Count")
+        p.set(title="Win Pct Distribution", xlabel="Guess Count", ylabel="Win Count")
         plt.show()
         print('loss:', total_losses, "%.2f%%" % (percent_losses))
         print("speed:", speed)
