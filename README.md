@@ -71,7 +71,7 @@ If you like to take a balanced approach to Wordle. The overall best words are (l
 
 But!, it won because our bot knows all the words. You can practice your Wordle-ing to
 learn more words and maybe develop a strategy better than random guessing with `Wordle.ipynb`. 
-As you play, you can quickly get hits of possible guesses, tables of remaining letter frequencies, 
+As you play, you can quickly get lists of possible guesses, tables of remaining letter frequencies, 
 and plots of positional information. 
 
 ![](imgs/game.png?raw=true)
@@ -83,3 +83,11 @@ and plots of positional information.
 - seaborn
 - logomaker
 - joblib
+- scikit-learn
+
+# Code
+
+Run `build_word_df.py` to start.  
+See `wordlexp.py` for details on methods.  
+Brute force search done with `score_words.py`.  
+Code is very messy.
