@@ -6,26 +6,10 @@ from collections import defaultdict
 from IPython.display import display
 import logomaker
 import itertools
+import joblib
 
-# Build words - need to use 'package' file
-valid_words = pd.read_csv("word_list.txt", header=None)
-valid_words.columns = ['word']
-valid_words["word"] = valid_words["word"].str.upper()
-valid_words['valid'] = True
-valid_guesses = pd.read_csv("valid_guesses.txt", header=None)
-valid_guesses.columns = ['word']
-valid_guesses["word"] = valid_guesses["word"].str.upper()
-valid_guesses['valid'] = False
-all_words = pd.concat([valid_words, valid_guesses]).reset_index(drop=True)
-for i in range(5):
-    all_words[f'L-{i}'] = all_words['word'].apply(lambda x: str(x)[i].upper())
-
+all_words = joblib.load('all_words.jl')
 letter_cols = [f"L-{_}" for _ in range(5)]
-def uniq_cnt(x): return len(list(set(x)))
-
-
-all_words['unique'] = all_words[letter_cols].apply(uniq_cnt, axis=1)
-
 
 class bcolors:
     """
@@ -54,29 +38,6 @@ def letter_summary(df):
     table['freq'] = table['count'] / len(df)
     table = table.sort_values(['freq'], ascending=False)
     return table
-
-    # overall freq
-    # counts = []
-    # for i in range(5):
-    #    counts.append(df[f'L-{i}'].value_counts())
-    #counts = pd.concat(counts, axis=1)
-    # Positional frequency
-    #pos_freqs = counts / counts.sum().sum()
-    #view = pd.concat([pos_freqs.idxmax(), pos_freqs.max()], axis=1)
-    #view.columns = ['letter', 'freq']
-    #n_col = []
-    # for pos, x in enumerate(pos_freqs.idxmax()):
-    #    n_col.append(len(df[df[f"L-{pos}"] == x]))
-    #view["count"] = n_col
-    #view.sort_values('freq', ascending=False, inplace=True)
-
-    # Letter frequencies unplaced
-    #overall_freq = counts.sum(axis=1) / counts.sum().sum()
-    #overall_freq.sort_values(ascending=False, inplace=True)
-
-    # Frequency in the words
-    overall_freq = counts.sum(axis=1) / counts.sum().sum()
-
     return overall_freq.to_frame('freq')
 
 
@@ -138,12 +99,15 @@ def random_guesser(possible_words, answer, chance=0):
     while (filt == 0).sum() > 1 and chance < 6:
         chance += 1
         guess = possible_words[filt == 0]['word'].sample(1).iloc[0]
-        if guess == answer:  # solved
-            ret.append([1, chance])
-            return ret
         n_filt = make_guess(possible_words[filt == 0], guess, answer)
+        
+        if guess == answer:  # solved
+            ret.append([1, 1, chance, True])
+            return ret
         filt += n_filt
-        ret.append([(n_filt == 0).sum(), chance])
+        a_space = (filt == 0).sum()
+        v_space = ((filt == 0) & (possible_words['valid'])).sum()
+        ret.append([a_space, v_space, chance, False])
     return ret
 
 
@@ -182,7 +146,7 @@ def make_logo(valid, min_freq=0.10):
     crp_logo.style_xticks(rotation=90, fmt='%d', anchor=0)
 
     # style using Axes methods
-    crp_logo.ax.set_ylabel("Word Space", labelpad=-1)
+    crp_logo.ax.set_ylabel("Letter Frequency", labelpad=-1)
     crp_logo.ax.xaxis.set_ticks_position('none')
     crp_logo.ax.xaxis.set_tick_params(pad=-1)
     plt.show()
@@ -201,10 +165,12 @@ def print_history(history, answer, summary):
                     bcolors.OKGREEN + guess[pos] + bcolors.ENDC
                 ans.remove(guess[pos])
         for pos in range(len(guess)):
+            if out_str[pos] != '':
+                continue
             if guess[pos] in ans:
                 out_str[pos] = bcolors.BOLD + \
                     bcolors.WARNING + guess[pos] + bcolors.ENDC
-            elif out_str[pos] == '':
+            else:
                 out_str[pos] = guess[pos].lower()
         print("".join(out_str))
     print(summary)
@@ -238,11 +204,11 @@ def look_at_valid_remaining(filt, guess):
     print('space', (filt == 0).sum(), '(', len(valid), ')')
 
 
-def available_lettters(history):
+def available_letters(history):
     """
     Prints the remaining letters available
     """
-    s = set(itertools.chain(history))
+    s = set(itertools.chain.from_iterable(history))
     remain = set([chr(_) for _ in range(ord('A'), ord('Z') + 1)]) - s
     print(" ".join(remain))
 
@@ -263,6 +229,7 @@ def play(answer=None):
         if guess.startswith('#'):
             look_at_remaining(filt, guess)
             continue
+
         elif guess.startswith('^'):
             look_at_valid_remaining(filt, guess)
             continue
@@ -279,9 +246,10 @@ def play(answer=None):
         # Get letter summary of remaining words
         if guess.startswith('%'):
             lfreq = letter_summary(all_words[filt == 0])
-            display(lfreq[lfreq['freq'] != 1].head(5))
+            display(lfreq[lfreq['freq'] != 1].head(5).T.round(2))
             make_logo(all_words[filt == 0])
             continue
+
         # Reset filter
         if guess.startswith('_'):
             filt = np.zeros(len(all_words))
@@ -333,34 +301,71 @@ def play(answer=None):
         # Output the colored latest guess
 
 
-def evaluate_first_word(guess, n=500):
+def evaluate_first_word(guess, samples=3, n=None, plot=False):
     """
     Evaluate a first guess by plotting the space size, win distribution, and loss percent
+    samples - number of times to try 
+    n - number of valid words to guess agains
+
+    Default of samples=1, n=None will try every valid word once
+    e.g. samples=2, n=10 will make two attempts through 10 random words
     """
-    answer = get_random_word()
-    filt = make_guess(all_words, guess, answer)
     # Only going to make answers for a sampling of valid words
+    if n is None:
+        n = all_words['valid'].sum()
+    guess = guess.upper()
     results = []
-    cnt = [((filt == 0).sum(), 1)]
-    for i in range(n):
-        results = random_guesser(all_words[filt == 0], answer, 1)
-        cnt.extend(results)
-    cnt = pd.DataFrame(cnt, columns=["space", "guess"])
+    cnt = []
+    for _ in range(samples):
+        for answer in all_words[(all_words["valid"])]['word'].sample(n, random_state=42):
+            # Make the first guess
+            filt = make_guess(all_words, guess, answer)
+            won = guess == answer
+            a_space = (filt == 0).sum()
+            v_space = ((filt == 0) & (all_words['valid'])).sum()
+            cnt.append([a_space, v_space,  1, won])
+            # Continue randomly guessing from there
+            results = random_guesser(all_words[filt == 0], answer, 1)
+            cnt.extend(results)
+    cnt = pd.DataFrame(cnt, columns=["a_space", "v_space", "guess", 'won'])
+    summary = cnt[cnt["won"]].groupby(['guess']).size().to_frame('win count').reset_index()
+    total_losses = len(cnt[(~cnt["won"]) & (cnt["guess"] == 6)])
+    percent_losses = (total_losses / (n * samples)) * 100
+    speed = cnt[cnt['won']]['guess'].describe()
 
-    p = sb.boxplot(data=cnt, x="guess", y="space")
-    p.set(title="Wordle is easy", xlabel="Guess Number",
-          ylabel="Space Size", yscale='log')
-    p.set_yticklabels(["{:,}".format(int(_)) for _ in p.get_yticks()])
-    plt.grid(which='major', axis='both')
-    sb.despine()
-    plt.show()
+    if plot:
+        p = sb.boxplot(data=cnt, x="guess", y="a_space")
+        p.set(title="Word Space", xlabel="Guess Number",
+              ylabel="Space Size", yscale='log')
+        p.set_yticklabels(["{:,}".format(int(_)) for _ in p.get_yticks()])
+        plt.grid(which='major', axis='both')
+        sb.despine()
+        plt.show()
+        display(cnt.groupby('guess')['a_space'].median().T)
 
-    summary = cnt[cnt["space"] == 1].groupby(
-        ['guess']).size().to_frame('win count').reset_index()
-    p = sb.barplot(data=summary, x="guess", y="win count")
-    p.set(title="But I am bad at it", xlabel="Guess Count", ylabel="Win Count")
-    plt.show()
+        p = sb.boxplot(data=cnt, x="guess", y="v_space")
+        p.set(title="Valid Word Space", xlabel="Guess Number",
+              ylabel="Space Size", yscale='log')
+        p.set_yticklabels(["{:,}".format(int(_)) for _ in p.get_yticks()])
+        plt.grid(which='major', axis='both')
+        sb.despine()
+        plt.show()
+        display(cnt.groupby('guess')['v_space'].median().T)
 
-    total_losses = len(cnt[(cnt["space"] != 1) & (cnt["guess"] == 6)])
-    percent_losses = (total_losses / n) * 100
-    print(total_losses, "%.2f%%" % (percent_losses))
+        p = sb.barplot(data=summary, x="guess", y="win count")
+        p.set(title="But I am bad at it", xlabel="Guess Count", ylabel="Win Count")
+        plt.show()
+        print('loss:', total_losses, "%.2f%%" % (percent_losses))
+        print("speed:", speed)
+
+    return {'word': guess, 'speed': speed['mean'], 'loss': percent_losses}
+
+def test():
+    history = ["RINSE",
+               "REPAY",
+               "ROLES",
+               "ROVER",
+               "RODEO"]
+    print_history(history, "RODEO", '')
+if __name__ == '__main__':
+    test()
