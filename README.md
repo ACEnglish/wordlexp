@@ -67,7 +67,7 @@ If you like to take a balanced approach to Wordle. The overall best words are (l
 | SPLAT | -2.064 |
 | SPENT | -1.955 |
 
-# SLEPT wins!
+# 🌱 wins!
 
 But!, it won because our bot knows all the words. You can practice your Wordle-ing to
 learn more words and maybe develop a strategy better than random guessing with `Wordle.ipynb`. 
