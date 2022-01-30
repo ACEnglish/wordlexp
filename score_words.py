@@ -12,7 +12,7 @@ if __name__ == '__main__':
     #candidates = candidates[:4]
     candidates = list(we.all_words[(we.all_words["valid"]) & (we.all_words["unique"] == 5)]["word"])
     print("checking", len(candidates))
-    with multiprocessing.Pool(4) as pool:
+    with multiprocessing.Pool(16) as pool:
         chunks = pool.map(we.evaluate_first_word, candidates)#we.all_words[we.all_words["valid"]]["word"])
         pool.close()
         pool.join()
