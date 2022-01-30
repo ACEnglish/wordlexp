@@ -7,7 +7,7 @@ A reimplementation of Wordle built for exploratory data analysis.
 
 Everyone is going crazy over Wordle. 
 There have been lots of
-[conversation](https://www.gamespot.com/articles/the-best-wordle-starting-word-has-been-figured-out-with-computer-science/1100-6500073/)
+[conversations](https://www.gamespot.com/articles/the-best-wordle-starting-word-has-been-figured-out-with-computer-science/1100-6500073/)
 about what's the best starting word. Two suggestions I've seen are `irate` (proposed by a linguist) and `later` 
 (proposed by a computer scientist).
 
