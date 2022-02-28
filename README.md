@@ -15,19 +15,18 @@ As a bioinformatician, I thought it'd be fun to dig in and use my data-science t
 
 But after my whole Saturday was spent looking at Digrams, and PCAs, and logo plots, I got tired and decided to just brute force the search.
 
-# What is the 'best word'?
-One thing that's bugged me about these best word conversations is what's 'BEST' hasn't been defined. The way I see it,
-there's two ways a starting word can be good.
+# The bot.
+One thing that's bugged me about these best word conversations is 'BEST' is based on assumptions of how one plays the game. Bots with different strategies choose different starting words that work best for how they operate. What if we tried to minimize our assumptions about how the game is played?
 
-1. Speed - The number of guesses, ON AVERAGE, that a starting word takes to get to the answer
-2. Loss - The number of rounds, ON AVERAGE, that a starting word does not find the answer
-
-# On Average?
-I've made a 'random' guesser that will play Wordle for us. This bot is probably above average in skill because it
+Here, I've made a 'random' guesser that will play Wordle for us. This bot is probably above average in skill because it
 knows every possible 5 letter answer word and plays Wordle's hard mode perfectly. It looks at the space of valid,
 possible words and randomly picks one to be its next guess. To get the tables below, I had the bot use every valid word 
 as it's first guess and then play with every valid word as the answer three times. That comes out to ~7.5 million games 
 of Wordle, which took about 5 hours on 16 cores. 
+
+Then, all we need to measure is which word is "BEST" based on two factors:
+1. Speed - The number of guesses, ON AVERAGE, that a starting word takes to get to the answer
+2. Loss - The number of rounds, ON AVERAGE, that a starting word does not find the answer
 
 # Sure. Average enough. So what's the best word!?
 
